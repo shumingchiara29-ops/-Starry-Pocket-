@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; cursor: pointer; }
+        .bg-img { width: 100vw; height: 100vh; object-fit: cover; transition: opacity 0.8s; }
+        .container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        .btn-main {
+            position: absolute; background: rgba(255, 255, 255, 0.9); cursor: pointer;
+            padding: 8px 15px; border-radius: 20px; font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 2px solid #ffdeeb;
+            z-index: 100;
+        }
+        .music-btn { top: 15px; right: 15px; }
+        .done-btn { top: 15px; left: 15px; }
+        .dots-btn { top: 55%; left: 47%; }
+
+        .modal {
+            display: none; position: absolute; bottom: 20px; left: 10%;
+            width: 80%; background: rgba(255, 255, 255, 0.95); padding: 20px;
+            border-radius: 20px; box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            border: 3px solid #ffdeeb; z-index: 200;
+        }
+        
+        /* 滚动区域控制 */
+        #inputs { 
+            max-height: 200px; /* 控制显示高度，约显示4行 */
+            overflow-y: auto; 
+            padding-right: 5px;
+            margin-bottom: 10px;
+        }
+
+        .input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 8px; background: #fff; border-radius: 12px; border: 1px solid #ffe4f0; }
+        input { flex-grow: 1; border: none; outline: none; background: transparent; font-size: 14px; }
+        .btn-action { cursor: pointer; border: none; border-radius: 50%; width: 25px; height: 25px; flex-shrink: 0; }
+        .check { background: #c8e6c9; }
+        .del { background: #ffcdd2; }
+
+        @keyframes flyUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+        }
+        .star { position: fixed; bottom: 0; color: #ffd700; font-size: 24px; pointer-events: none; animation: flyUp 2s ease-out forwards; z-index: 9999; }
+    </style>
+</head>
+<body>
+
+<audio id="bgMusic" loop><source src="music.stars.mp3" type="audio/mpeg"></audio>
+<img src="image_fc2c81.jpg" id="bg-img" class="bg-img">
+
+<div class="container">
+    <button class="btn-main music-btn" onclick="event.stopPropagation(); toggleMusic()">🎵 音乐</button>
+    <button class="btn-main done-btn" onclick="event.stopPropagation(); toggleModal('doneModal')">✅ 已完成</button>
+    <div class="btn-main dots-btn" onclick="event.stopPropagation(); toggleModal('noteModal')">✨ 灵感</div>
+</div>
+
+<div id="noteModal" class="modal" onclick="event.stopPropagation()">
+    <h3 style="margin-top: 0; color: #ff85a2;">🌈 灵感记录 (共8个)</h3>
+    <div id="inputs"></div>
+    <div style="text-align: right;">
+        <button onclick="saveAll()" style="background:#ff85a2; color:white; border:none; padding:5px 15px; border-radius:10px;">保存</button>
+        <button onclick="closeModal('noteModal')" style="background:#ddd; border:none; padding:5px 15px; border-radius:10px;">关闭</button>
+    </div>
+</div>
+
+<div id="doneModal" class="modal" onclick="event.stopPropagation()">
+    <h3 style="margin-top: 0; color: #81c784;">🏆 已完成事项</h3>
+    <div id="doneInputs" style="max-height: 200px; overflow-y: auto;"></div>
+    <div style="text-align: right;">
+        <button onclick="closeModal('doneModal')" style="background:#ddd; border:none; padding:5px 15px; border-radius:10px;">关闭</button>
+    </div>
+</div>
+
+<script>
+    const bg = document.getElementById('bg-img');
+    const DEFAULT_BG = 'image_fc2c81.jpg';
+    const SLEEP_BG = 'image_f1a9d6.jpg';
+    const HAPPY_BG = 'image_f21e50.jpg';
+
+    let clickCount = 0;
+    let clickTimer = null;
+    let isSleeping = false;
+
+    document.addEventListener('click', () => {
+        if (isSleeping) {
+            bg.src = DEFAULT_BG;
+            isSleeping = false;
+        } else {
+            clickCount++;
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => { clickCount = 0; }, 600);
+            if (clickCount === 3) {
+                bg.src = SLEEP_BG;
+                isSleeping = true;
+                clickCount = 0;
+            }
+        }
+    });
+
+    // 初始化8个灵感行
+    const inputsDiv = document.getElementById('inputs');
+    for(let i=1; i<=8; i++) {
+        inputsDiv.innerHTML += `
+            <div class="input-group">
+                <span style="min-width: 20px;">${i}.</span>
+                <input type="text" placeholder="记录下你的闪光想法...">
+                <button class="btn-action check" onclick="event.stopPropagation(); markDone(this)">✓</button>
+                <button class="btn-action del" onclick="event.stopPropagation(); clearRow(this)">✕</button>
+            </div>
+        `;
+    }
+
+    function toggleModal(id) { document.getElementById(id).style.display = 'block'; }
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
+        bg.src = HAPPY_BG;
+        setTimeout(() => { bg.src = DEFAULT_BG; }, 2000);
+    }
+
+    function clearRow(btn) { btn.parentElement.querySelector('input').value = ''; }
+    function markDone(btn) {
+        const input = btn.parentElement.querySelector('input');
+        if(input.value.trim() !== "") {
+            document.getElementById('doneInputs').innerHTML += `<div class="input-group"><input type="text" value="${input.value}" readonly><button class="btn-action del" onclick="event.stopPropagation(); this.parentElement.remove()">✕</button></div>`;
+            input.value = '';
+            for (let i = 0; i < 40; i++) {
+                const star = document.createElement('div');
+                star.innerHTML = '✨'; star.className = 'star';
+                star.style.left = Math.random() * 100 + 'vw';
+                document.body.appendChild(star);
+                setTimeout(() => star.remove(), 2500);
+            }
+        }
+    }
+    function saveAll() { alert('8个灵感已保存！'); }
+    function toggleMusic() { const m = document.getElementById('bgMusic'); m.paused ? m.play() : m.pause(); }
+</script>
+
+</body>
+</html>
